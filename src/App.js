@@ -1,52 +1,101 @@
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { StreamClient } from 'getstream'
-import { StreamApp } from 'react-activity-feed'
+import React, {useEffect} from 'react'
+import {BrowserRouter as Router, Route, Switch} from 'react-router-dom'
+import Sidebar from './components/Sidebar/Sidebar'
+import Feed from './components/Feed/Feed'
+import Widgets from './components/Widgets/Widgets'
+import SidebarChat from './components/SidebarChat/SidebarChat'
+import Chat from './components/Chat/Chat'
+import ConversationInfo from './components/ConversationInfo/ConversationInfo'
+import Login from './components/Login/Login'
+import Profile from './components/Profile/Profile'
+import ProfileWidgets from './components/ProfileWidgets/ProfileWidgets'
+import ProfileFollow  from './components/ProfileFollow/ProfileFollow'
+import Status from './components/Status/Status'
+import CommentThread from './components/CommentThread/CommentThread'
+import StatusWidget from './components/StatusWidget/StatusWidget'
 
-import StartPage from './pages/StartPage'
-import users from './users'
-import { getFromStorage } from './utils/storage'
-import ScrollToTop from './components/ScrollToTop'
-import HomePage from './pages/HomePage'
-import Profile from './pages/Profile'
-import Thread from './pages/Thread'
-import Notifications from './pages/Notifications'
+import BottomNav from './elements/BottomNav/BottomNav'
 
-const APP_ID = '1183905'
-const API_KEY = 'mx8gc4kmvpec'
+import './App.css'
 
-export default function App() {
-  const userId = getFromStorage('user')
+import ChatContextProvider from './contexts/ChatContextProvider'
+import {useStateValue} from './contexts/StateContextProvider'
+import {actionTypes} from './contexts/StateReducers'
 
-  const user = users.find((u) => u.id === userId) || users[0]
-
-  const [client, setClient] = useState(null)
+const App = () => {
+  const [{user}, dispatch] = useStateValue()
 
   useEffect(() => {
-    async function init() {
-      const client = new StreamClient(API_KEY, user.token, APP_ID)
-      await client.user(user.id).getOrCreate({ ...user, token: '' })
-
-      setClient(client)
-    }
-
-    init()
+      dispatch({
+        type: actionTypes.SET_USER,
+        user: JSON.parse(localStorage.getItem('twittie_user'))
+      })    
   }, [])
 
-  if (!client) return <></>
-
   return (
-    <StreamApp token={user.token} appId={APP_ID} apiKey={API_KEY}>
-      <Router>
-        <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<StartPage />} />
-          <Route element={<HomePage />} path="/home" />
-          <Route element={<Profile />} path="/:user_id" />
-          <Route element={<Thread />} path="/:user_id/status/:id" />
-          <Route element={<Notifications />} path="/notifications" />
-        </Routes>
+    <div className="app">
+    {
+      user?
+      <Router>  
+        <div className="app__mainContent">
+          <Sidebar />
+          <Switch>
+            <Route exact path='/'>
+                <div className="app__main">
+                  <Feed />
+                  <Widgets />
+                </div>         
+            </Route>
+
+            <Route path='/messages'>
+              <ChatContextProvider>
+                <div className="app__main">
+                  <SidebarChat />
+                  <Switch>
+                    <Route path='/messages/:roomId' exact>
+                      <Chat />
+                    </Route>
+                    <Route path='/messages/:roomId/info'>
+                      <ConversationInfo />
+                    </Route>
+                  </Switch>
+                </div>            
+              </ChatContextProvider>           
+            </Route>       
+
+            <Route path='/profile/:username' >
+                <div className="app__main">
+                  <Switch>
+                    <Route path='/profile/:username' exact component={Profile} />
+                    <Route path='/profile/:username/followinfo' render={()=> <ProfileFollow />} />
+                  </Switch>
+                  <ProfileWidgets />
+                </div>         
+            </Route>
+
+            <Route path='/status/:postId'>
+                <div className="app__main">
+                  <Switch>
+                    <Route path='/status/:postId' exact>
+                        <Status />
+                    </Route> 
+                    <Route path='/status/:postId/:commentId'>
+                        <CommentThread />
+                    </Route>
+                  </Switch>
+                  <StatusWidget />
+                </div> 
+            </Route>
+
+          </Switch>
+        </div>
+        <BottomNav />
       </Router>
-    </StreamApp>
+      :
+      <Login />
+    }
+    </div>   
   )
 }
+
+export default App
